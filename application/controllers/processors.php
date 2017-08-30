@@ -13,43 +13,59 @@ public function __construct()
 public function index()
 {
 
-	$this->load->view('home');
+	$this->load->view('enterpage');
+}
+public function homepage()
+{
+	$this->load->view('homepage');
+}
+public function login_page()
+{
+	$this->load->view('login');
+}
+public function register_page()
+{
+	$this->load->view('register');
+}
+public function ourteam_page()
+{
+	$this->load->view('ourteam');
 }
 public function sign_up()
 {
 
 			$this->form_validation->set_rules('email','Email','required|trim|valid_email',array(
-			'required'=>'You must eneter data to field',
-			'valid_email'=>'please enter valid email',
+			'required'=>'You must enter Email Address to field !',
+			'valid_email'=>'Please enter valid email !',
 			
 		));
 			$this->form_validation->set_rules('password','Password','required|min_length[8]|max_length[15]|trim',array(
-			'required'=>'You must eneter data to field',
+			'required'=>'You forgot to set a password !',
 			
-			'min_length[8]'=>'the name must at least 8 letters'
+			'min_length[8]'=>'The Password must be at least 8 letters !'
 
 		));
 			$this->form_validation->set_rules('cpassword','Cpassword','required|min_length[8]|max_length[15]|trim|matches[password]',array(
-			'required'=>'You must eneter data to field',
+			'required'=>'You must confirm the passwrod also !',
 			
-			'min_length[8]'=>'the name must at least 8 letters',
-			'matches[password]'=>'no match'
+			'min_length[8]'=>'',
+			'matches[password]'=>'The password is not match !'
 		));
 
 
 			$this->form_validation->set_rules('nickName','NickName','required|min_length[3]|max_length[15]|trim|alpha_numeric',array(
-			'required'=>'You must eneter data to field',
+			'required'=>'You must enter a Nickname to field !',
 			
-			'min_length[3]'=>'the name must at least 3 letters',
-			'alpha_numeric'=>'You can only use char and numbers stick together'
+			'min_length[3]'=>'The Nickname must be at least 3 letters !',
+			'alpha_numeric'=>'You can only use char and numbers stick together !'
 			
 		));
-
+			
 
 
 		if ($this->form_validation->run()==false) 
 		{
-			$this->load->view('home');
+			$this->load->view('register');
 		}
 		else
 		{
@@ -58,19 +74,23 @@ public function sign_up()
 			
 				'email'=>$this->input->post('email',true),
 				'password'=>md5($this->input->post('password',true)),
-				'nickName'=>$this->input->post('nickName',true)
+				'nickName'=>$this->input->post('nickName',true),
+				
+				'created_at'=>date('Y/m/d h:i:sa'),
+				'updated_at'=>date('Y/m/d h:i:sa'),
+				'status'=>'online'
 
 			);
 			if ($this->user->is_user_exist($data['nickName'])||$this->user->is_exist_email($data['email'])) 
 			{
 				$message['errors']='you are already exist';
-				$this->load->view('home',$message);
+				$this->load->view('register',$message);
 			}
 			else
 			{
 				$this->user->insert_user($data);
 				$message['succes']='you are registered';
-				$this->load->view('home',$message);
+				$this->load->view('login',$message);
 
 			}
 		}
@@ -85,7 +105,7 @@ public function sign_in()
 
 	$data=array
 	(
-		'email'=>$this->input->post('email',true),
+		'nickName'=>$this->input->post('nickName',true),
 		'password'=>md5($this->input->post('password',true))
 	
 	);
@@ -96,29 +116,30 @@ public function sign_in()
 
 		(
 			'id'=>$result[0]->id,
-			'first_name'=>$result[0]->first_name,
-			'last_name'=>$result[0]->last_name,
-			'email'=>$result[0]->email
+			'email'=>$result[0]->email,
+			'nickName'=>$result[0]->nickName
+			
 
 		);
 		$this->session->set_userdata($session_data);
-		$posts['post']=$this->show_post();
-		$this->load->view('wall',$posts);
+		$this->user->edit_status1();
+		
+		$this->load->view('chatpage');
 
 	}
 	else
 	{
-		$message['errors']="invalid email or password";
-		$this->load->view('home',$message);
+		$message['errors']="invalid Nickname or password";
+		$this->load->view('login',$message);
 	}
 }
 
 
 public function log_out()
 {
-	
-	$this->session->sess_destroy();
-	$this->load->view('home');
+	$this->user->edit_status2();
+	$this->session->sess_destroy('logg_in');
+	$this->load->view('homepage');
 }
 public function  is_valid()
 
@@ -137,6 +158,110 @@ public function  is_valid()
 
 	
 }
+public function process()
+{	
+	$action=$this->input->post('action',true);
+	if ($action=='show_msg') 
+	{
+		$result=$this->user->get_all_msg();
+		 
+		if ($result) 
+
+		{
+			
+		
+		for ($i=0; $i <count($result) ; $i++)
+			{ 
+				echo "<a class='pull-left' href='#'>
+                     <img class='media-object img-circle' src='assests/imgs/couple.png'/>
+                     </a><h4 style='color:#31708F; margin-left:70px;'><b>"
+					.ucfirst($result[$i]->nickName)
+					.":</h4></b><small style=' margin-left:10px;' >"
+					.date('d/M h:i',strtotime($result[$i]->created_at_m))
+					.":</small><br><br><div style=' margin-left:70px;'><i> "
+					.$result[$i]->message
+					."</i></div><hr>";
+			}	
+			
+		}
+	}
+
+	else 
+	{
+			$input=array
+	(
+		'message'=>html_escape($this->input->post('msg',true)),
+		'users_id'=>$this->session->userdata('id'),
+		'created_at_m'=>date('Y/m/d h:i'),
+		'updated_at'=>date('Y/m/d h:i')
+
+
+
+	);
+	$this->user->insert_msg($input);
+	}
+		
+
+	}
+
+
+	
+
+
+
+public function show_users()
+{
+
+
+	
+		$result=$this->user->get_users();
+				
+		if ($result)
+		 {
+			
+		
+		for ($i=0; $i <count($result) ; $i++)
+		{ 
+			echo "<h5 style='color:#31708F; text-align: center;'><b>".ucfirst($result[$i]->nickName)."</h5><b><hr>";
+		}
+	}
+}
+public function change_status()
+{
+	$data=array
+	(
+
+		'status'=>$this->input->post('status',true),
+		'id'=>$this->session->userdata('id')
+
+	);
+
+	$this->user->edit_status($data);
+
+
+
+
+}
+public function recaptcha()
+  {
+    $google_url="https://www.google.com/recaptcha/api/siteverify";
+    $secret='6LfVYSIUAAAAAIOUnDS52lvsebNYj-2kavisSwRu';
+    $ip=$_SERVER['REMOTE_ADDR'];
+    $url=$google_url."?secret=".$secret."&response=".$this->input->post('g-recaptcha-response')."&remoteip=".$ip;
+  	$res=file_get_contents($url);
+    $arr= json_decode($res, true);
+    //reCaptcha success check
+    if($arr['success'])
+    {
+      return TRUE;
+    }
+    else
+    {
+      $this->form_validation->set_message('recaptcha', 'The reCAPTCHA field is telling me that you are a robot. Shall we give it another try?');
+      return FALSE;
+    }
+  }
+
 
 
 
